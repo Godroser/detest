@@ -90,6 +90,7 @@ public:
   uint64_t get_size();
   void init() {}
   void release() {}
+
 };
 
 class FinishMessage : public Message {
@@ -491,5 +492,42 @@ class DAQueryMessage : public QueryMessage {
 	uint64_t next_state;
 	uint64_t last_state;
 };
+
+/*for data migration*/
+class MigrationMessage : public Message{
+public:
+  void copy_from_buf(char* buf);
+  void copy_to_buf(char* buf);
+  void copy_from_txn(TxnManager* txn);
+  void copy_to_txn(TxnManager* txn);
+  uint64_t get_size();
+  void init(){}
+  void release(){}
+  uint64_t part_id_src,part_id_des;
+  /*
+    isreceive:节点是否收到数据/消息
+  */
+  bool isreceive;
+};
+
+
+class MigrationDataMessage : public Message{
+public:
+  void copy_from_buf(char* buf);
+  void copy_to_buf(char* buf);
+  void copy_from_txn(TxnManager* txn);
+  void copy_to_txn(TxnManager* txn);
+  uint64_t get_size();
+  void init(){}
+  void release(){}
+  uint64_t part_id;
+  uint64_t part_id_src,part_id_des;
+  vector<row_t*> rows;
+  vector<row_t> rowsdata;
+  uint64_t rows_size;
+  bool isreceive;
+};
+
+
 
 #endif

@@ -53,6 +53,9 @@
 #include "tictoc.h"
 #include "key_xid.h"
 #include "rts_cache.h"
+#include "storage/part_migration.h"
+#include "storage/index_btree.h"
+#include "storage/index_hash.h"
 
 void network_test();
 void network_test_recv();
@@ -274,9 +277,10 @@ int main(int argc, char *argv[]) {
 
 	// 2. spawn multiple threads
 	uint64_t thd_cnt = g_thread_cnt;
-	uint64_t wthd_cnt = thd_cnt;
+	uint64_t wthd_cnt = thd_cnt + g_migration_thread_cnt;  //迁移线程并到工作线程里
 	uint64_t rthd_cnt = g_rem_thread_cnt;
 	uint64_t sthd_cnt = g_send_thread_cnt;
+	//uint64_t mthd_cnt = g_migration_thread_cnt;
 	uint64_t all_thd_cnt = thd_cnt + rthd_cnt + sthd_cnt + g_abort_thread_cnt + 1;
 #if LOGGING
 		all_thd_cnt += 1; // logger thread
@@ -360,12 +364,31 @@ int main(int argc, char *argv[]) {
 
 	uint64_t id = 0;
 	for (uint64_t i = 0; i < wthd_cnt; i++) {
-#if SET_AFFINITY
-		CPU_ZERO(&cpus);
-		CPU_SET(cpu_cnt, &cpus);
-		pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
-		cpu_cnt++;
-#endif
+		#if SET_AFFINITY
+			CPU_ZERO(&cpus);
+			CPU_SET(cpu_cnt, &cpus);
+			pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
+			cpu_cnt++;
+		#endif
+		
+		if (i == wthd_cnt/3){ //启动迁移线程
+			uint64_t part_id_src=0, part_id_des=5;
+			#if MIGRATION
+				MigrationDataMessage* msg = new(MigrationDataMessage);
+				msg->part_id_des = part_id_src;
+				msg->part_id_des = part_id_des;
+				msg->rtype = SEND_MIGRATION;
+				msg->rows_size = g_synth_table_size / g_part_cnt;
+				Part_Migration_ycsb* part_migration_ycsb = (Part_Migration_ycsb*)malloc(sizeof(Part_Migration_ycsb));
+				part_migration_ycsb->get_row_id(part_id_src,((YCSBWorkload*)m_wl)->the_index,msg->rows,msg->rowsdata);
+
+				work_queue.enqueue(i,msg,true);
+				worker_thds[i].init_migration(part_id_src, part_id_des);
+				pthread_create(&p_thds[id++], &attr, run_thread, (void *)&worker_thds[i]);
+				//free(msg);
+			#endif
+		}
+		
 		assert(id >= 0 && id < wthd_cnt);
 		worker_thds[i].init(id,g_node_id,m_wl);
 		pthread_create(&p_thds[id++], &attr, run_thread, (void *)&worker_thds[i]);
@@ -411,6 +434,8 @@ int main(int argc, char *argv[]) {
 	calvin_seq_thds[0].init(id,g_node_id,m_wl);
 	pthread_create(&p_thds[id++], &attr, run_thread, (void *)&calvin_seq_thds[0]);
 #endif
+
+
 
 	worker_num_thds[0].init(id,g_node_id,m_wl);
 	pthread_create(&p_thds[id++], &attr, run_thread, (void *)&worker_num_thds[0]);

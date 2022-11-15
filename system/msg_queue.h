@@ -54,4 +54,22 @@ private:
   sem_t 	_semaphore;
 };
 
+class MigrationMessageQueue : public MessageQueue{
+public:
+  void init();
+  void statqueue(uint64_t thd_id, msg_entry * entry);
+  void enqueue(uint64_t thd_id, Message * msg, uint64_t dest);
+  uint64_t dequeue(uint64_t thd_id, Message *& msg);
+private:
+  #if NETWORK_DELAY_TEST
+    boost::lockfree::queue<msg_entry*> ** cl_m_queue;
+  #endif
+  boost::lockfree::queue<msg_entry*> ** m_queue;
+  std::vector<msg_entry*> sthd_m_cache;
+  uint64_t ** ctr;
+
+  uint64_t msg_queue_size;
+  sem_t 	_semaphore;
+};
+
 #endif

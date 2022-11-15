@@ -135,6 +135,13 @@ Message * Message::create_message(RemReqType rtype) {
     case INIT_DONE:
       msg = new InitDoneMessage;
       break;
+      /*migration*/
+    case SEND_MIGRATION:
+      msg = new MigrationDataMessage;
+      break;
+    case RECV_MIGRATION:
+      msg = new MigrationMessage;
+      break;
     case RQRY:
     case RQRY_CONT:
 #if WORKLOAD == YCSB
@@ -302,6 +309,16 @@ void Message::release_message(Message * msg) {
       delete m_msg;
       break;
                     }
+    case SEND_MIGRATION:{
+      MigrationDataMessage* m_msg = (MigrationDataMessage*)msg;
+      m_msg->release();
+      break;
+    }
+    case RECV_MIGRATION:{
+      MigrationDataMessage* m_msg = (MigrationDataMessage*)msg;
+      m_msg->release();
+      break;
+    }
     case RQRY:
     case RQRY_CONT: {
 #if WORKLOAD == YCSB
@@ -1979,3 +1996,81 @@ uint64_t DAQueryMessage::get_size() {
   return size;
 }
 void DAQueryMessage::release() { QueryMessage::release(); }
+
+
+/*MigrationMessage*/
+void MigrationMessage::copy_from_buf(char* buf) { 
+  Message::mcopy_from_buf(buf);
+  uint64_t ptr = MigrationMessage::get_size();
+  COPY_VAL(part_id_src,buf,ptr);
+  COPY_VAL(part_id_des,buf,ptr);
+}
+
+void MigrationMessage::copy_to_buf(char* buf) {
+  Message::mcopy_to_buf(buf); 
+  uint64_t ptr = MigrationMessage::get_size();
+  COPY_BUF(buf,part_id_src,ptr);
+  COPY_BUF(buf,part_id_des,ptr);
+}
+
+void MigrationMessage::copy_from_txn(TxnManager* txn){
+  Message::mcopy_from_txn(txn);
+}
+  
+void MigrationMessage::copy_to_txn(TxnManager* txn){
+  txn->return_id = return_node_id;
+}
+
+uint64_t MigrationMessage::get_size(){
+  uint64_t size = MigrationMessage::get_size();
+  size += sizeof(uint64_t) * 2;
+  return size;
+}
+
+//todo不确定要干嘛
+//void MigrationMessage::release(){}
+
+/*有点问题
+void MigrationMessage::release(){
+  Message::release();
+}
+*/
+void MigrationDataMessage::copy_from_txn(TxnManager* txn){
+  ((YCSBWorkload*)txn->h_wl)->part_node_map[this->part_id] = this->part_id_des;
+}
+
+void MigrationDataMessage::copy_to_txn(TxnManager* txn){
+  txn->return_id = return_node_id;
+}
+
+void MigrationDataMessage::copy_from_buf(char* buf) { 
+  Message::mcopy_from_buf(buf);
+  uint64_t ptr = MigrationDataMessage::get_size();
+  COPY_VAL(part_id_src,buf,ptr);
+  COPY_VAL(part_id_des,buf,ptr);
+  COPY_VAL(rows_size,buf,ptr);
+  for (size_t i=0;i<rows_size;i++){
+    rowsdata.emplace_back(row_t());
+    COPY_VAL(rowsdata[i],buf,ptr);
+  }
+}
+
+void MigrationDataMessage::copy_to_buf(char* buf) {
+  Message::mcopy_to_buf(buf); 
+  uint64_t ptr = MigrationDataMessage::get_size();
+  COPY_BUF(buf,part_id_src,ptr);
+  COPY_BUF(buf,part_id_des,ptr);
+  COPY_BUF(buf,rows_size,ptr);
+  for (size_t i=0;i<rows.size();i++){
+    COPY_BUF(buf,*rows[i],ptr);
+  }
+}
+
+uint64_t MigrationDataMessage::get_size(){
+  uint64_t size = MigrationDataMessage::get_size();
+  size += sizeof(uint64_t) * 3;
+  size += sizeof(*rows[0])*rows_size;
+  return size;
+}
+
+//void MigrationDataMessage::release(){}

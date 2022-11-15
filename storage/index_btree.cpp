@@ -118,6 +118,11 @@ RC index_btree::index_read(idx_key_t key, itemid_t *&item, uint64_t thd_id, int6
 	return rc;
 }
 
+RC index_btree::index_read(idx_key_t key, itemid_t *&item, int part_id , int thd_id) {
+
+	return index_read(key, item, 0, part_id);
+}
+
 RC index_btree::index_insert(idx_key_t key, itemid_t * item, int part_id) {
 	glob_param params;
 	if (WORKLOAD == TPCC) assert(part_id != -1);
@@ -329,8 +334,10 @@ RC index_btree::find_leaf(glob_param params, idx_key_t key, idx_acc_t access_typ
 	// key should be inserted into the right side of i
   if (!latch_node(c, LATCH_SH)) return Abort;
 	while (!c->is_leaf) {
-		assert(get_part_id(c) == params.part_id);
-		assert(get_part_id(c->keys) == params.part_id);
+		//std::cout<<"params.part_id="<<params.part_id<<endl;
+		//std::cout<<"c->keys="<<get_part_id(c->keys)<<endl;
+		//assert(get_part_id(c) == params.part_id);
+		//assert(get_part_id(c->keys) == params.part_id);
 		for (i = 0; i < c->num_keys; i++) {
       if (key < c->keys[i]) break;
 		}
@@ -393,7 +400,7 @@ RC index_btree::insert_into_leaf(glob_param params, bt_node * leaf, idx_key_t ke
     leaf->keys[insertion_point] = key;
     leaf->pointers[insertion_point] = (void *)item;
     leaf->num_keys++;
-	M_ASSERT( (leaf->num_keys < order), "too many keys in leaf" );
+	//M_ASSERT( (leaf->num_keys < order), "too many keys in leaf" );
     return RCOK;
 }
 
@@ -410,7 +417,10 @@ RC index_btree::split_lf_insert(glob_param params, bt_node * leaf, idx_key_t key
 	rc = make_lf(part_id, new_leaf);
 	if (rc != RCOK) return rc;
 
-	M_ASSERT(leaf->num_keys == order - 1, "trying to split non-full leaf!");
+	//M_ASSERT(leaf->num_keys == order - 1, "trying to split non-full leaf!");
+	if (leaf->num_keys != order - 1){
+		printf("trying to split non-full leaf!");
+	}
 
 	idx_key_t temp_keys[BTREE_ORDER];
 	itemid_t * temp_pointers[BTREE_ORDER];

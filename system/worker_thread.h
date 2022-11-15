@@ -51,6 +51,14 @@ public:
     RC process_log_msg(Message * msg);
     RC process_log_msg_rsp(Message * msg);
     RC process_log_flushed(Message * msg);
+
+    void init_migration(uint64_t part_id_src,uint64_t part_id_des);
+    RC process_send_migration(Message* msg);
+    RC process_recv_migration(Message* msg);
+    RC process_finish_migration(Message* msg);
+    uint64_t part_id_src;
+    uint64_t part_id_des;
+
     RC init_phase();
     uint64_t get_next_txn_id();
     bool is_cc_new_timestamp();

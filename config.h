@@ -81,6 +81,10 @@
 #define LOAD_METHOD LOAD_MAX
 #define LOAD_PER_SERVER 100
 
+//Migration 是否迁移
+#define MIGRATION true
+#define MIGRATION_THREAD_CNT 2
+
 // Replication
 #define REPLICA_CNT 0
 // AA (Active-Active), AP (Active-Passive)
@@ -127,7 +131,7 @@
 #define MEM_PAD           true
 
 // [PART_ALLOC]
-#define PART_ALLOC          false
+#define PART_ALLOC          true
 #define MEM_SIZE          (1UL << 30)
 #define NO_FREE           false
 
@@ -176,7 +180,7 @@
 #define ENABLE_LATCH        false
 #define CENTRAL_INDEX       false
 #define CENTRAL_MANAGER       false
-#define INDEX_STRUCT        IDX_HASH
+#define INDEX_STRUCT        IDX_BTREE
 #define BTREE_ORDER         16
 
 // [TIMESTAMP]

@@ -40,6 +40,8 @@
 #include "ssi.h"
 #include "focc.h"
 #include "bocc.h"
+#include "benchmarks/ycsb.h"
+#include "concurrency_control/row_lock.h"
 
 void WorkerThread::setup() {
 	if( get_thd_id() == 0) {
@@ -114,6 +116,12 @@ void WorkerThread::fakeprocess(Message * msg) {
 			case LOG_MSG_RSP:
         rc = process_log_msg_rsp(msg);
 				break;
+      case SEND_MIGRATION:
+        rc = process_send_migration(msg);
+        break;
+      case RECV_MIGRATION:
+        rc = process_recv_migration(msg);
+        break;
 			default:
         printf("Msg: %d\n",msg->get_rtype());
         fflush(stdout);
@@ -183,6 +191,12 @@ void WorkerThread::process(Message * msg) {
 			case RTXN_CONT:
         rc = process_rtxn_cont(msg);
 				break;
+      case SEND_MIGRATION:
+        rc = process_send_migration(msg);
+        break;
+      case RECV_MIGRATION:
+        rc = process_recv_migration(msg);
+        break;
       case CL_QRY:
       case CL_QRY_O:
 			case RTXN:
@@ -950,6 +964,56 @@ RC WorkerThread::process_log_flushed(Message * msg) {
   if (g_repl_cnt == 0 || txn_man->repl_finished) commit();
   return RCOK;
 }
+
+void WorkerThread::init_migration(uint64_t part_id_src,uint64_t part_id_des){
+  this->part_id_src = part_id_src;
+  this->part_id_des = part_id_des;
+
+}
+
+RC WorkerThread::process_send_migration(Message* msg){  //源节点准备发分区给目标节点
+  DEBUG("SEND MIGRATION %ld\n",msg->get_txn_id());
+  //((MigrationDataMessage*)msg)->copy_to_txn(txn_man);
+  //m_wl.part_node_map[((MigrationDataMessage*)msg)->part_id] = ((MigrationDataMessage*)msg)->part_id_des;
+  //给迁移分区加锁
+  for (size_t i=0;i<((MigrationDataMessage*)msg)->rows_size;i++){
+    Row_lock* row_lock = (Row_lock*)malloc(sizeof(Row_lock));
+    row_lock->init(&((MigrationDataMessage*)msg)->rowsdata[i]);
+    ((MigrationDataMessage*)msg)->rowsdata[i].manager = &*row_lock;
+    ((MigrationDataMessage*)msg)->rowsdata[i].manager->lock_get(LOCK_EX,this->txn_man);
+  }
+  msg->txn_id = this->txn_man->get_txn_id();
+  msg->rtype = RECV_MIGRATION;
+  msg_queue.enqueue(get_thd_id(), msg, ((MigrationDataMessage*)msg)->part_id_des);
+
+  RC rc = RCOK;
+  return rc;
+}
+
+RC WorkerThread::process_recv_migration(Message* msg){  //目标节点接收到分区
+  DEBUG("RECV MIGRATION %ld\n",msg->get_txn_id());
+  //nothing to do 只需要给源节点发消息说自己收到了就行
+  msg->rtype = FINISH_MIGRATION;
+  msg_queue.enqueue(get_thd_id(), msg, ((MigrationDataMessage*)msg)->part_id_src);
+
+
+  //((MigrationDataMessage*)msg)->copy_from_txn(txn_man);
+  //((MigrationDataMessage*)msg)->copy_to_txn(txn_man);
+  RC rc = RCOK;
+  return rc;
+}
+
+RC WorkerThread::process_finish_migration(Message* msg){  //源节点完成迁移
+  DEBUG("FINISH MIGRATION %ld\n",msg->get_txn_id());
+  //源节点执行释放锁，修改part_node_map操作
+  TxnManager* txn_man = get_transaction_manager(msg); //获取消息的txn_man
+  for (size_t i=0;i<((MigrationDataMessage*)msg)->rows_size;i++){ //一行行释放锁
+    ((MigrationDataMessage*)msg)->rows[i]->manager->lock_release(txn_man);
+  }
+  ((MigrationDataMessage*)msg)->copy_from_txn(txn_man);//修改part_node_map
+  return RCOK;
+}
+
 
 RC WorkerThread::process_rfwd(Message * msg) {
   DEBUG("RFWD (%ld,%ld)\n",msg->get_txn_id(),msg->get_batch_id());

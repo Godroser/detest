@@ -17,6 +17,8 @@
 #ifndef _SYNTH_BM_H_
 #define _SYNTH_BM_H_
 
+#include <map>
+
 #include "wl.h"
 #include "txn.h"
 #include "global.h"
@@ -40,6 +42,7 @@ public :
 	RC init_schema(const char * schema_file);
 	RC get_txn_man(TxnManager *& txn_manager);
 	int key_to_part(uint64_t key);
+  std::map<uint64_t,uint64_t> part_node_map;  //分区迁移需要map来记录分区所在节点
 	INDEX * the_index;
 	table_t * the_table;
 private:
@@ -49,6 +52,7 @@ private:
 		((YCSBWorkload *)This)->init_table_slice();
 		return NULL;
 	}
+  void init_part_node_map();
 	pthread_mutex_t insert_lock;
 	//  For parallel initialization
 	static int next_tid;

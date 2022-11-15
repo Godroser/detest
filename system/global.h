@@ -189,6 +189,7 @@ extern UInt32 g_logger_thread_cnt;
 extern UInt32 g_tcp_thread_cnt;
 extern UInt32 g_send_thread_cnt;
 extern UInt32 g_rem_thread_cnt;
+extern UInt32 g_migration_thread_cnt;
 extern ts_t g_abort_penalty;
 extern ts_t g_abort_penalty_max;
 extern bool g_central_man;
@@ -281,6 +282,9 @@ extern UInt32 g_seq_thread_cnt;
 // TICTOC
 extern uint32_t g_max_num_waits;
 
+// MIGRATION
+extern bool ismigration;
+
 // Replication
 extern UInt32 g_repl_type;
 extern UInt32 g_repl_cnt;
@@ -313,6 +317,10 @@ enum RemReqType {
     LOG_MSG_RSP,
     LOG_FLUSHED,
     CALVIN_ACK,
+    //add type for migration
+    SEND_MIGRATION,
+    RECV_MIGRATION,
+    FINISH_MIGRATION,
   NO_MSG
 };
 

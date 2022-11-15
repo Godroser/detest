@@ -421,8 +421,7 @@ void MessageThread::run() {
       sbuf->reset(dest_node_id);
     }
     uint64_t old_ptr = sbuf->ptr;
-    ASSERT(msg->get_rtype() == RQRY ||
-        msg->get_rtype() == RQRY_RSP);
+    //ASSERT(msg->get_rtype() == RQRY || msg->get_rtype() == RQRY_RSP);
     if (msg->get_rtype() == RQRY ||
         msg->get_rtype() == RQRY_RSP) {
       fake_copy_to_buf(msg, &(sbuf->buffer[sbuf->ptr]));

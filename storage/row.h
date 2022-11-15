@@ -104,6 +104,7 @@ public:
 
 	void free_row();
 
+
 	// for concurrency control. can be lock, timestamp etc.
 	RC get_lock(access_t type, TxnManager * txn);
 	RC get_ts(uint64_t &orig_wts, uint64_t &orig_rts);
@@ -149,6 +150,17 @@ public:
 	char * data;
 	int tuple_size;
 	table_t * table;
+
+	/*
+		migration info
+		0:无需迁移
+		1:准备迁移
+		2:正在迁移
+		3:双边读写
+		4:完成迁移
+	*/
+	int migration_status=0; 
+
 private:
 	// primary key should be calculated from the data stored in the row.
 	uint64_t 		_primary_key;

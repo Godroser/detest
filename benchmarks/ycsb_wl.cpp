@@ -45,12 +45,14 @@ RC YCSBWorkload::init() {
 		path += "YCSB_schema.txt";
 		//path += "/tests/apps/dbms/YCSB_schema.txt";
 	}
+  init_part_node_map();
   printf("Initializing schema... ");
   fflush(stdout);
 	init_schema( path.c_str() );
   printf("Done\n");
 
   printf("Initializing table... ");
+
   fflush(stdout);
 	init_table_parallel();
   printf("Done\n");
@@ -70,7 +72,13 @@ int
 YCSBWorkload::key_to_part(uint64_t key) {
 	//uint64_t rows_per_part = g_synth_table_size / g_part_cnt;
 	//return key / rows_per_part;
-  return key % g_part_cnt;
+  return part_node_map[key];
+}
+
+void YCSBWorkload::init_part_node_map(){
+	for (size_t i=0;i<g_part_cnt;i++){
+		part_node_map[i] = i % g_part_cnt;
+	}
 }
 
 RC YCSBWorkload::init_table() {
@@ -128,6 +136,7 @@ void YCSBWorkload::init_table_parallel() {
 	for (UInt32 i = 0; i < g_init_parallelism - 1; i++) {
 		pthread_create(&p_thds[i], NULL, threadInitTable, this);
 	}
+	
 	threadInitTable(this);
 
 	for (uint32_t i = 0; i < g_init_parallelism - 1; i++) {

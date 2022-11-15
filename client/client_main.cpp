@@ -181,7 +181,7 @@ int main(int argc, char *argv[]) {
     	pthread_attr_setaffinity_np(&attr, sizeof(cpu_set_t), &cpus);
 #endif
     	client_thds[i].init(id,g_node_id,m_wl);
-		pthread_create(&p_thds[id++], &attr, run_thread, (void *)&client_thds[i]);
+		pthread_create(&p_thds[id++], &attr, run_thread, (void *)&client_thds[i]); //将query发到msg_queue
     }
 
 	for (uint64_t j = 0; j < rthd_cnt ; j++) {
